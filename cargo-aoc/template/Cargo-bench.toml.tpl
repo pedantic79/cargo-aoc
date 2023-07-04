@@ -8,7 +8,7 @@ authors = ["Grégory Obanos <gregory.obanos@gmail.com>"]
 aoc-runner = "0.3"
 
 [dev-dependencies]
-criterion = "0.2.5"
+criterion = "0.5"
 
 {PROFILE}
 

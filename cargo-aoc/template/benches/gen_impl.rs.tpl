@@ -1,6 +1,5 @@
 
     {
         let input = input_day{DAY}.clone();
-        let fun = Fun::new("{NAME}", move |b, _| b.iter(|| Factory::{RUNNER_NAME}(input.clone()).unwrap()));
-        {GEN_NAME}.push(fun);
+        {GEN_NAME}.bench_function("{NAME}", |b| b.iter(|| Factory::{RUNNER_NAME}(input.clone()).unwrap()));
     }
