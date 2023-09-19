@@ -4,8 +4,8 @@ use clap::ArgMatches;
 use credentials::CredentialsManager;
 use date::AOCDate;
 use project::ProjectManager;
-use reqwest::header::{COOKIE, USER_AGENT};
 use reqwest::blocking::Client;
+use reqwest::header::{COOKIE, USER_AGENT};
 use reqwest::StatusCode;
 use std::error;
 use std::fs;
@@ -28,7 +28,7 @@ impl AOCApp {
     pub fn execute_credentials(&self, sub_args: &ArgMatches) {
         let mut creds_manager = CredentialsManager::new();
 
-        if let Some(new_session) = sub_args.value_of("set") {
+        if let Some(new_session) = sub_args.get_one::<String>("set") {
             // Tries to set the session token
             match creds_manager.set_session_token(new_session.into()) {
                 Ok(()) => println!("Credentials sucessfully changed!"),
@@ -63,7 +63,7 @@ impl AOCApp {
         let formated_token = format!("session={}", token);
         // Sends the query to the right URL, with the user token
         let res = client
-            .get(&date.request_url())
+            .get(date.request_url())
             .header(USER_AGENT, CARGO_AOC_USER_AGENT)
             .header(COOKIE, formated_token)
             .send();
@@ -76,7 +76,7 @@ impl AOCApp {
                     let filename = date.filename();
                     let dir = date.directory();
                     // Creates the file-tree to store inputs
-                    // TODO: Maybe use crate's infos to get its root in the filesystem ? 
+                    // TODO: Maybe use crate's infos to get its root in the filesystem ?
                     fs::create_dir_all(&dir).unwrap_or_else(|_| panic!("Could not create input directory: {}", dir));
 
                     // Gets the body from the response and outputs everything to a file
@@ -113,7 +113,7 @@ impl AOCApp {
         let formated_token = format!("session={}", token);
 
         let response = client
-            .get(&date.request_url())
+            .get(date.request_url())
             .header(USER_AGENT, CARGO_AOC_USER_AGENT)
             .header(COOKIE, formated_token)
             .send()?;
@@ -123,11 +123,11 @@ impl AOCApp {
                 let dir = date.directory();
                 // Creates the file-tree to store inputs
                 // TODO: Maybe use crate's infos to get its root in the filesystem ?
-                fs::create_dir_all(&dir)?;
+                fs::create_dir_all(dir)?;
 
                 // Gets the body from the response and outputs everything to a file
                 let body = response.text()?;
-                let mut file = File::create(&filename)?;
+                let mut file = File::create(filename)?;
                 file.write_all(body.as_bytes())?;
             }
             sc => return Err(format!(
@@ -141,12 +141,12 @@ impl AOCApp {
 
     pub fn execute_default(&self, args: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
         let day: Option<Day> = args
-            .value_of("day")
-            .map(|d| d.parse().expect("Failed to parse day"));
+            .get_one("day")
+            .map(|d: &String| d.parse().expect("Failed to parse day"));
 
         let part: Option<Part> = args
-            .value_of("part")
-            .map(|p| p.parse().expect("Failed to parse part"));
+            .get_one("part")
+            .map(|p: &String| p.parse().expect("Failed to parse part"));
 
         let pm = ProjectManager::new()?;
 
@@ -162,7 +162,7 @@ impl AOCApp {
         .replace("{CRATE_NAME}", &pm.name)
         .replace(
             "{PROFILE}",
-            if args.is_present("profile") {
+            if args.get_flag("profile") {
                 "[profile.release]\ndebug = true"
             } else {
                 ""
@@ -214,19 +214,23 @@ impl AOCApp {
         .replace("{YEAR}", &day_parts.year.to_string())
         .replace(
             "{INPUT}",
-            &template_input(day, year, args.value_of("input")),
+            &template_input(
+                day,
+                year,
+                args.get_one::<String>("input").map(|s| s.as_str()),
+            ),
         )
         .replace("{BODY}", &body);
 
         fs::create_dir_all("target/aoc/aoc-autobuild/src")
             .expect("failed to create autobuild directory");
-        fs::write("target/aoc/aoc-autobuild/Cargo.toml", &cargo_content)
+        fs::write("target/aoc/aoc-autobuild/Cargo.toml", cargo_content)
             .expect("failed to write Cargo.toml");
-        fs::write("target/aoc/aoc-autobuild/src/main.rs", &main_content)
+        fs::write("target/aoc/aoc-autobuild/src/main.rs", main_content)
             .expect("failed to write src/main.rs");
 
         let status = process::Command::new("cargo")
-            .args(&["run", "--release"])
+            .args(["run", "--release"])
             .current_dir("target/aoc/aoc-autobuild")
             .spawn()
             .expect("Failed to run cargo")
@@ -242,12 +246,12 @@ impl AOCApp {
 
     pub fn execute_bench(&self, args: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
         let day: Option<Day> = args
-            .value_of("day")
-            .map(|d| d.parse().expect("Failed to parse day"));
+            .get_one("day")
+            .map(|d: &String| d.parse().expect("Failed to parse day"));
 
         let part: Option<Part> = args
-            .value_of("part")
-            .map(|p| p.parse().expect("Failed to parse part"));
+            .get_one("part")
+            .map(|p: &String| p.parse().expect("Failed to parse part"));
 
         let pm = ProjectManager::new()?;
 
@@ -263,7 +267,7 @@ impl AOCApp {
         .replace("{CRATE_NAME}", &pm.name)
         .replace(
             "{PROFILE}",
-            if args.is_present("profile") {
+            if args.get_flag("profile") {
                 "[profile.release]\ndebug = true"
             } else {
                 ""
@@ -339,7 +343,7 @@ impl AOCApp {
                                     .replace(
                                         "{NAME}",
                                         if let Some(n) = &dp.name {
-                                            &n
+                                            n
                                         } else {
                                             "(default)"
                                         },
@@ -355,7 +359,7 @@ impl AOCApp {
             return Err("No matching day & part found".into());
         }
 
-        let gens = if args.is_present("generator") {
+        let gens = if args.get_flag("generator") {
             let mut parts: Vec<_> = matching_parts.clone().map(|dp| dp.part).collect();
             parts.sort();
             parts.dedup();
@@ -391,7 +395,7 @@ impl AOCApp {
                                         .replace(
                                             "{NAME}",
                                             if let Some(n) = &dp.name {
-                                                &n
+                                                n
                                             } else {
                                                 "(default)"
                                             },
@@ -414,7 +418,7 @@ impl AOCApp {
             .replace("{GENS}", &gens)
             .replace(
                 "{BENCHMARKS}",
-                if args.is_present("generator") {
+                if args.get_flag("generator") {
                     "aoc_benchmark, input_benchmark"
                 } else {
                     "aoc_benchmark"
@@ -422,21 +426,25 @@ impl AOCApp {
             )
             .replace(
                 "{INPUTS}",
-                &template_input(day, year, args.value_of("input")),
+                &template_input(
+                    day,
+                    year,
+                    args.get_one::<String>("input").map(|s| s.as_str()),
+                ),
             );
 
         fs::create_dir_all("target/aoc/aoc-autobench/benches")
             .expect("failed to create autobench directory");
-        fs::write("target/aoc/aoc-autobench/Cargo.toml", &cargo_content)
+        fs::write("target/aoc/aoc-autobench/Cargo.toml", cargo_content)
             .expect("failed to write Cargo.toml");
         fs::write(
             "target/aoc/aoc-autobench/benches/aoc_benchmark.rs",
-            &main_content,
+            main_content,
         )
         .expect("failed to write src/aoc_benchmark.rs");
 
         let status = process::Command::new("cargo")
-            .args(&["bench"])
+            .args(["bench"])
             .current_dir("target/aoc/aoc-autobench")
             .spawn()
             .expect("Failed to run cargo")
@@ -447,7 +455,7 @@ impl AOCApp {
             process::exit(status.code().unwrap_or(-1));
         }
 
-        if args.is_present("open") {
+        if args.get_flag("open") {
             let index = "target/aoc/aoc-autobench/target/criterion/report/index.html";
 
             if !Path::new(index).exists() {

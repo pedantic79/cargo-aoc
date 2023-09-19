@@ -17,13 +17,13 @@ impl AOCDate {
         let utc_today = Utc::now().naive_utc();
         let today = EST.from_utc_datetime(&utc_today);
         let day: u32 = matches
-            .value_of("day")
-            .map(|d| d.parse::<u32>().expect("Day not formatted correctly"))
+            .get_one("day")
+            .map(|d: &String| d.parse::<u32>().expect("Day not formatted correctly"))
             .unwrap_or_else(|| today.day());
 
         let year: i32 = matches
-            .value_of("year")
-            .map(|d| d.parse::<i32>().expect("Year not formatted correctly"))
+            .get_one("year")
+            .map(|d: &String| d.parse::<i32>().expect("Year not formatted correctly"))
             .unwrap_or_else(|| today.year());
 
         AOCDate { day, year }
